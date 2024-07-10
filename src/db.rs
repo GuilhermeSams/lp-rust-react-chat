@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use diesel::prelude::*;
+use diesel::{prelude::*, r2d2::{ConnectionManager, PooledConnection}};
 use std::{
     collections::{HashMap, HashSet},
     time::SystemTime,
@@ -97,7 +97,11 @@ fn iso_date() -> String {
     return now.to_rfc3339();
 }
 
-pub fn insert_new_user(conn: &mut SqliteConnection, nm: &str, pn: &str) -> Result<User, DbError> {
+pub fn insert_new_user(
+    conn: &mut PooledConnection<ConnectionManager<SqliteConnection>>,
+    nm: &str,
+    pn: &str,
+) -> Result<User, DbError> {
     use crate::schema::users::dsl::*;
 
     let new_user = User {
@@ -107,13 +111,16 @@ pub fn insert_new_user(conn: &mut SqliteConnection, nm: &str, pn: &str) -> Resul
         created_at: iso_date(),
     };
 
-    diesel::insert_into(users).values(&new_user).execute(conn)?;
+    diesel::insert_into(users)
+        .values(&new_user)
+        .execute(conn)?;
 
     Ok(new_user)
 }
 
+
 pub fn insert_new_conversation(
-    conn: &mut SqliteConnection,
+    conn: &mut PooledConnection<ConnectionManager<SqliteConnection>>,
     new: NewConversation,
 ) -> Result<Conversation, DbError> {
     use crate::schema::conversations::dsl::*;

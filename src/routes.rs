@@ -9,9 +9,10 @@ use diesel::{
     prelude::*,
     r2d2::{self, ConnectionManager},
 };
+use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
-
+use crate::models::NewConversation;
 use crate::db;
 use crate::models;
 use crate::server;
@@ -39,7 +40,7 @@ pub async fn chat_server(
             db_pool: pool,
         },
         &req,
-        stream
+        stream,
     )
 }
 
@@ -140,9 +141,7 @@ pub async fn get_user_by_phone(
 }
 
 #[get("/rooms")]
-pub async fn get_rooms(
-    pool: web::Data<DbPool>,
-) -> Result<HttpResponse, Error> {
+pub async fn get_rooms(pool: web::Data<DbPool>) -> Result<HttpResponse, Error> {
     let rooms = web::block(move || {
         let mut conn = pool.get()?;
         db::get_all_rooms(&mut conn)
@@ -161,5 +160,31 @@ pub async fn get_rooms(
             .to_string(),
         );
         Ok(res)
+    }
+}
+
+#[derive(Deserialize)]
+struct NewMessage {
+    user_id: String,
+    room_id: String,
+    content: String,
+}
+
+#[post("/messages")]
+pub async fn create_message(
+    pool: web::Data<DbPool>,
+    new_message: web::Json<NewMessage>,
+) -> Result<HttpResponse, Error> {
+    let mut conn = pool.get().expect("couldn't get db connection from pool");
+
+    let new_conversation = NewConversation {
+        user_id: new_message.user_id.clone(),
+        room_id: new_message.room_id.clone(),
+        message: new_message.content.clone(),
+    };
+
+    match db::insert_new_conversation(&mut conn, new_conversation) {
+        Ok(conversation) => Ok(HttpResponse::Ok().json(conversation)),
+        Err(_) => Ok(HttpResponse::InternalServerError().into()),
     }
 }

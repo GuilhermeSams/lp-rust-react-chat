@@ -5,8 +5,9 @@ use std::{
     time::SystemTime,
 };
 use uuid::Uuid;
-
+use crate::crypto_utils::{encrypt_message, decrypt_message};
 use crate::models::{Conversation, NewConversation, Room, RoomResponse, User};
+use std::error::Error;
 
 type DbError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -24,15 +25,21 @@ pub fn find_user_by_uid(conn: &mut SqliteConnection, uid: Uuid) -> Result<Option
 pub fn get_conversation_by_room_uid(
     conn: &mut SqliteConnection,
     uid: Uuid,
-) -> Result<Option<Vec<Conversation>>, DbError> {
+) -> Result<Option<Vec<Conversation>>, Box<dyn Error + Send + Sync>> {
     use crate::schema::conversations;
 
-    let convo = conversations::table
+    let mut convos = conversations::table
         .filter(conversations::room_id.eq(uid.to_string()))
-        .load(conn)
+        .load::<Conversation>(conn)
         .optional()?;
 
-    Ok(convo)
+    if let Some(convos) = &mut convos {
+        for convo in convos.iter_mut() {
+            convo.content = decrypt_message(&convo.content)?;
+        }
+    }
+
+    Ok(convos)
 }
 
 pub fn find_user_by_phone(
@@ -120,16 +127,18 @@ pub fn insert_new_user(
 
 
 pub fn insert_new_conversation(
-    conn: &mut PooledConnection<ConnectionManager<SqliteConnection>>,
+    conn: &mut SqliteConnection,
     new: NewConversation,
-) -> Result<Conversation, DbError> {
+) -> Result<Conversation, Box<dyn Error + Send + Sync>> {
     use crate::schema::conversations::dsl::*;
+
+    let encrypted_content = encrypt_message(&new.message)?;
 
     let new_conversation = Conversation {
         id: Uuid::new_v4().to_string(),
         user_id: new.user_id,
         room_id: new.room_id,
-        content: new.message,
+        content: encrypted_content,
         created_at: iso_date(),
     };
 

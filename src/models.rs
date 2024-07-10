@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::schema::*;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Queryable, Insertable)]
 pub struct User {
@@ -44,4 +45,11 @@ pub struct NewConversation {
 pub struct RoomResponse {
     pub room: Room,
     pub users: Vec<User>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct NewMessage {
+    pub user_id: Uuid,
+    pub room_id: Uuid,
+    pub content: String,
 }

@@ -5,11 +5,11 @@ use actix::*;
 use actix_cors::Cors;
 use actix_files::Files;
 use actix_web::{web, http, App, HttpServer};
-
 use diesel::{
     prelude::*,
     r2d2::{self, ConnectionManager},
 };
+use crate::routes::create_message;
 
 mod db;
 mod models;
@@ -49,6 +49,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::get_user_by_phone)
             .service(routes::get_conversation_by_id)
             .service(routes::get_rooms)
+            .service(create_message)
             .service(Files::new("/", "./static"))
     })
     .workers(2)

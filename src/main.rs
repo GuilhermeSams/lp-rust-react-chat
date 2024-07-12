@@ -17,6 +17,7 @@ mod routes;
 mod schema;
 mod server;
 mod session;
+mod crypto_utils;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
